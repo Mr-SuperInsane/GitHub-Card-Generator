@@ -1,189 +1,227 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GitHubリポジトリカード生成ツール</title>
-    <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 20px auto; padding: 0 15px; background-color: #f9f9f9; }
-        h1 { text-align: center; color: #24292e; }
-        .container { background-color: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
-        input[type="url"] { width: 100%; padding: 10px; font-size: 16px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-        button { display: block; width: 100%; padding: 12px; font-size: 16px; color: #fff; background-color: #28a745; border: none; border-radius: 4px; cursor: pointer; margin-top: 15px; }
-        button:hover { background-color: #218838; }
-        textarea { width: 100%; height: 200px; margin-top: 15px; font-family: monospace; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; }
-        h2 { margin-top: 30px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
-        #preview { border: 1px dashed #ccc; padding: 20px; border-radius: 5px; min-height: 100px; margin-top: 15px; }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GitHubリポジトリカード生成ツール – Fast UX</title>
+  <style>
+    :root {
+      --bg:#f7f7f8; --fg:#1f2328; --muted:#66707b; --primary:#28a745; --primary-hover:#218838; --border:#e1e4e8; --danger:#d73a49; --card:#fff;
+    }
+    * { box-sizing: border-box }
+    body{ font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; line-height:1.6; color:var(--fg); background:var(--bg); margin:0; }
+    .wrap{ max-width:900px; margin:24px auto; padding:0 16px; }
+    h1{ text-align:center; margin:0 0 16px; color:#24292e }
+    .container{ background:var(--card); border:1px solid var(--border); border-radius:12px; padding:20px; box-shadow:0 6px 18px rgba(0,0,0,.05) }
+    .row{ display:grid; grid-template-columns:1fr auto; gap:10px; align-items:center }
+    input[type="url"], input[type="text"], input[type="password"], textarea{ width:100%; padding:12px; font-size:16px; border:1px solid #c9ccd1; border-radius:8px; background:#fff }
+    textarea{ height:190px; font-family: ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace }
+    button{ cursor:pointer; border:0; border-radius:8px; padding:12px 14px; font-size:15px; background:var(--primary); color:#fff }
+    button:hover{ background:var(--primary-hover)}
+    .ghost{ background:#eff1f3; color:#111; border:1px solid #d0d7de }
+    .ghost:hover{ background:#e6eaef }
+    .hint{ color:var(--muted); font-size:14px }
+    .grid{ display:grid; gap:14px }
+    .cols{ display:grid; gap:12px; grid-template-columns: 1fr 1fr }
+    .section-title{ margin:10px 0 6px; font-weight:600 }
+    .preview{ border:1px dashed #c9ccd1; border-radius:8px; padding:14px; min-height:90px; background:#fff }
+    .toast{ position:fixed; inset:auto auto 16px 50%; transform:translateX(-50%); background:#111; color:#fff; padding:10px 14px; border-radius:999px; opacity:0; transition:opacity .25s, transform .25s; pointer-events:none }
+    .toast.show{ opacity:1; transform:translateX(-50%) translateY(-6px) }
+    .err{ color:var(--danger) }
+    .flex{ display:flex; gap:10px; align-items:center; flex-wrap:wrap }
+    .kbd{ font-family:ui-monospace,monospace; border:1px solid #c9ccd1; padding:2px 6px; border-radius:6px; background:#fff }
+    .hr{ height:1px; background:#ebeef1; margin:10px 0 }
+
+    /* Card CSS that will be embedded into the generated snippet */
+    .gh-card-container{ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; border:1px solid #e1e4e8; border-radius:6px; padding:16px; margin:1.5em 0; line-height:1.4; background:#fff; max-width:600px }
+    .gh-card-container a{ text-decoration:none; color:inherit }
+    .gh-card-header{ display:flex; align-items:center; gap:8px; margin-bottom:8px }
+    .gh-card-repo-name{ font-weight:600; font-size:1.1em; color:#0366d6 }
+    .gh-card-repo-name:hover{ text-decoration:underline }
+    .gh-card-description{ color:#586069; font-size:.9em; margin-bottom:16px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; min-height:2.5em }
+    .gh-card-footer{ display:flex; align-items:center; gap:16px; font-size:.8em; color:#586069 }
+    .gh-card-language-color{ width:12px; height:12px; border-radius:50%; border:1px solid #d1d5da; margin-right:4px; display:inline-block; vertical-align:middle }
+    .gh-card-owner{ margin-left:auto; display:flex; align-items:center; gap:6px }
+    .gh-card-owner img{ width:24px; height:24px; border-radius:50% }
+  </style>
 </head>
 <body>
+  <div class="wrap">
+    <h1>GitHubリポジトリカード生成（高速版）</h1>
+    <div class="container grid">
+      <div class="row">
+        <input type="text" id="repo-input" placeholder="https://github.com/username/repo または username/repo" autocomplete="off" />
+        <div class="flex">
+          <button id="generate-btn" title="Enterでも実行可">カード生成 ⏎</button>
+          <button id="paste-btn" class="ghost" title="クリックでクリップボードからURLを取得">📋 クリップボード</button>
+        </div>
+      </div>
+      <div class="hint">高速版の使い方：<span class="kbd">Enter</span>で生成／どこでも<span class="kbd">貼り付け</span>で自動検出／URLをドラッグ＆ドロップ／生成後は自動コピー</div>
 
-    <div class="container">
-        <h1>GitHubリポジトリカード生成ツール</h1>
-        <p>WordPressブログ用のGitHubリポジトリカードを生成します。リポジトリのURLを入力してください。</p>
-        <input type="url" id="github-url" placeholder="https://github.com/username/repository">
-        <button onclick="generateCard()">カードを生成</button>
+      <div class="cols">
+        <div>
+          <div class="section-title">プレビュー</div>
+          <div id="preview" class="preview">ここにプレビューが表示されます</div>
+        </div>
+        <div>
+          <div class="section-title">WordPress用HTML</div>
+          <textarea id="html-code" readonly placeholder="ここにHTMLコードが出力されます"></textarea>
+          <div class="flex" style="margin-top:8px">
+            <button id="copy-btn">HTMLをコピー</button>
+            <button id="reset-btn" class="ghost">リセット</button>
+          </div>
+          <div class="hint">GitHub APIの制限回避のため、必要に応じてトークンを保存できます（任意）</div>
+          <details>
+            <summary>GitHubトークン（任意）</summary>
+            <input type="password" id="token" placeholder="ghp_...（ローカル保存）" />
+            <div class="flex">
+              <button id="save-token" class="ghost">保存</button>
+              <button id="clear-token" class="ghost">削除</button>
+            </div>
+          </details>
+        </div>
+      </div>
 
-        <h2>プレビュー</h2>
-        <div id="preview">ここにプレビューが表示されます</div>
-
-        <h2>WordPress用HTMLコード</h2>
-        <textarea id="html-code" readonly placeholder="ここにHTMLコードが出力されます"></textarea>
+      <div class="hr"></div>
+      <div class="hint">URLパラメータ <span class="kbd">?url=</span> または <span class="kbd">?repo=</span> で自動生成します。ブックマークレットも用意：<code>javascript:window.open('YOUR_TOOL_URL?url='+encodeURIComponent(location.href),'_blank')</code></div>
     </div>
+  </div>
 
-    <script>
-        async function generateCard() {
-            const url = document.getElementById('github-url').value;
-            const preview = document.getElementById('preview');
-            const codeOutput = document.getElementById('html-code');
+  <div id="toast" class="toast" role="status" aria-live="polite">コピーしました</div>
 
-            preview.innerHTML = '読み込み中...';
-            codeOutput.value = '';
+  <script>
+    const $ = (s, r=document) => r.querySelector(s);
+    const repoInput = $('#repo-input');
+    const preview = $('#preview');
+    const codeOutput = $('#html-code');
+    const generateBtn = $('#generate-btn');
+    const pasteBtn = $('#paste-btn');
+    const copyBtn = $('#copy-btn');
+    const resetBtn = $('#reset-btn');
+    const toast = $('#toast');
+    const tokenEl = $('#token');
 
-            if (!url.includes('github.com')) {
-                preview.innerHTML = '<p style="color: red;">有効なGitHubのURLを入力してください。</p>';
-                return;
-            }
+    // --- UX: URLパラメータで自動生成（操作削減） ---
+    (function initFromParams(){
+      const params = new URL(location.href).searchParams;
+      const urlParam = params.get('url') || params.get('repo');
+      if(urlParam){
+        repoInput.value = urlParam;
+        generateCard();
+      }
+    })();
 
-            const pathParts = new URL(url).pathname.split('/').filter(part => part);
-            if (pathParts.length < 2) {
-                preview.innerHTML = '<p style="color: red;">リポジトリのパスが見つかりません。(例: username/repository)</p>';
-                return;
-            }
+    // --- UX: どこでも貼り付けで自動入力＆実行 ---
+    document.addEventListener('paste', (e)=>{
+      const t = (e.clipboardData || window.clipboardData).getData('text');
+      if(isLikelyRepo(t)){
+        repoInput.value = t.trim();
+        generateCard();
+      }
+    });
 
-            const repoPath = `${pathParts[0]}/${pathParts[1]}`;
-            const apiUrl = `https://api.github.com/repos/${repoPath}`;
+    // --- UX: ドラッグ＆ドロップ対応 ---
+    document.addEventListener('dragover', e=>{ e.preventDefault(); });
+    document.addEventListener('drop', e=>{
+      e.preventDefault();
+      const t = e.dataTransfer.getData('text');
+      if(isLikelyRepo(t)){
+        repoInput.value = t.trim();
+        generateCard();
+      }
+    });
 
-            try {
-                const response = await fetch(apiUrl);
-                if (!response.ok) {
-                    throw new Error(`GitHub APIからの応答エラー: ${response.status}`);
-                }
-                const data = await response.json();
+    // --- UX: Enterで実行 ---
+    repoInput.addEventListener('keydown', e=>{
+      if(e.key === 'Enter') { e.preventDefault(); generateCard(); }
+    });
 
-                const cardHtml = `
-<style>
-.gh-card-container {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    border: 1px solid #e1e4e8;
-    border-radius: 6px;
-    padding: 16px;
-    margin: 1.5em 0;
-    line-height: 1.4;
-    background-color: #fff;
-    max-width: 600px;
-}
-.gh-card-container a {
-    text-decoration: none;
-    color: inherit;
-}
-.gh-card-header {
-    display: flex;
-    align-items: center;
-    margin-bottom: 8px;
-}
-.gh-card-header svg {
-    display: inline-block;
-    vertical-align: text-bottom;
-    margin-right: 8px;
-}
-.gh-card-repo-name {
-    font-weight: 600;
-    font-size: 1.1em;
-    color: #0366d6;
-}
-.gh-card-repo-name:hover {
-    text-decoration: underline;
-}
-.gh-card-description {
-    color: #586069;
-    font-size: 0.9em;
-    margin-bottom: 16px;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    min-height: 2.5em;
-}
-.gh-card-footer {
-    display: flex;
-    align-items: center;
-    font-size: 0.8em;
-    color: #586069;
-}
-.gh-card-footer-item {
-    display: flex;
-    align-items: center;
-    margin-right: 16px;
-}
-.gh-card-footer-item svg {
-    margin-right: 4px;
-}
-.gh-card-language-color {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    margin-right: 4px;
-    border: 1px solid #d1d5da;
-}
-.gh-card-owner {
-    display: flex;
-    align-items: center;
-    margin-left: auto;
-}
-.gh-card-owner img {
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    margin-right: 6px;
-}
-</style>
-<div class="gh-card-container">
-    <a href="${data.html_url}" target="_blank" rel="noopener noreferrer">
-        <div class="gh-card-header">
-            <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true">
-                <path d="M2 2.5A2.5 2.5 0 0 1 4.5 0h8.75a.75.75 0 0 1 .75.75v12.5a.75.75 0 0 1-.75.75h-2.5a.75.75 0 0 1 0-1.5h1.75v-2h-8a1 1 0 0 0-.714 1.7.75.75 0 0 1-1.072 1.05A2.495 2.495 0 0 1 2 11.5Z M4.5 1h8V.75H4.5a1.75 1.75 0 0 0 0 3.5h8V3h-8a1.75 1.75 0 0 0 0-3.5Zm-2.25 8a.75.75 0 0 0 .75.75h4.5a.75.75 0 0 0 0-1.5h-4.5a.75.75 0 0 0-.75.75Z"></path>
-            </svg>
-            <span class="gh-card-repo-name">${data.full_name}</span>
-        </div>
-        <div class="gh-card-description">${data.description || 'No description provided.'}</div>
-        <div class="gh-card-footer">
-            ${data.language ? `<div class="gh-card-footer-item"><span class="gh-card-language-color" style="background-color: ${getLanguageColor(data.language)};"></span><span>${data.language}</span></div>` : ''}
-            <div class="gh-card-footer-item">
-                <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16"><path d="M8 .25a.75.75 0 0 1 .673.418l1.882 3.815 4.21.612a.75.75 0 0 1 .416 1.279l-3.046 2.97.719 4.192a.75.75 0 0 1-1.088.791L8 13.347l-3.766 1.98a.75.75 0 0 1-1.088-.79l.72-4.192L.644 6.374a.75.75 0 0 1 .416-1.28l4.21-.611L7.327.668A.75.75 0 0 1 8 .25Z"></path></svg>
-                <span>${data.stargazers_count}</span>
-            </div>
-            <div class="gh-card-footer-item">
-                <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16"><path d="M5 5.372v.878c0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75v-.878a2.25 2.25 0 1 1 1.5 0v.878a2.25 2.25 0 0 1-2.25 2.25h-1.5v2.128a.75.75 0 0 1-1.5 0V8.5h-1.5A2.25 2.25 0 0 1 3.5 6.25v-.878a2.25 2.25 0 1 1 1.5 0Z M4.25 5.5a.75.75 0 1 0-1.5 0 .75.75 0 0 0 1.5 0Zm7.5 0a.75.75 0 1 0-1.5 0 .75.75 0 0 0 1.5 0Z"></path></svg>
-                <span>${data.forks_count}</span>
-            </div>
-            <div class="gh-card-owner">
-                <img src="${data.owner.avatar_url}" alt="${data.owner.login}">
-                <span>${data.owner.login}</span>
-            </div>
-        </div>
-    </a>
-</div>
-`;
-                
-                preview.innerHTML = cardHtml;
-                codeOutput.value = cardHtml.trim();
+    // --- UX: 1クリックでクリップボードからURL取得 ---
+    pasteBtn.addEventListener('click', async ()=>{
+      try{
+        const t = await navigator.clipboard.readText();
+        if(!t){ return toastMsg('クリップボードが空です'); }
+        repoInput.value = t.trim();
+        generateCard();
+      }catch(err){ toastMsg('クリップボードにアクセスできません'); }
+    });
 
-            } catch (error) {
-                preview.innerHTML = `<p style="color: red;">エラーが発生しました: ${error.message}</p>`;
-            }
-        }
-        
-        // This is a simplified map. Not all languages are covered.
-        function getLanguageColor(language) {
-            const colors = {
-                "JavaScript": "#f1e05a", "TypeScript": "#3178c6", "Python": "#3572A5",
-                "HTML": "#e34c26", "CSS": "#563d7c", "Java": "#b07219", "Ruby": "#701516",
-                "PHP": "#4F5D95", "C++": "#f34b7d", "C#": "#178600", "Go": "#00ADD8",
-                "Swift": "#ffac45", "Kotlin": "#F18E33", "Rust": "#dea584", "Shell": "#89e051"
-            };
-            return colors[language] || '#ededed';
-        }
-    </script>
+    // --- 保存されたトークン ---
+    tokenEl.value = localStorage.getItem('gh_token') || '';
+    $('#save-token').addEventListener('click', ()=>{ localStorage.setItem('gh_token', tokenEl.value.trim()); toastMsg('トークンを保存しました'); });
+    $('#clear-token').addEventListener('click', ()=>{ localStorage.removeItem('gh_token'); tokenEl.value=''; toastMsg('トークンを削除しました'); });
+
+    generateBtn.addEventListener('click', generateCard);
+    copyBtn.addEventListener('click', ()=> tryCopy(codeOutput.value));
+    resetBtn.addEventListener('click', ()=>{ repoInput.value=''; codeOutput.value=''; preview.textContent='ここにプレビューが表示されます'; });
+
+    function isLikelyRepo(input){
+      if(!input) return false;
+      try{ new URL(input); }catch{ /* not a full URL */ }
+      return /github\.com\/[^\/?#]+\/[\w.-]+/.test(input) || /^[-\w.]+\/[\w.-]+$/.test(input.trim());
+    }
+
+    function toRepoPath(raw){
+      let s = raw.trim();
+      try{ const u = new URL(s); if(u.hostname.includes('github.com')) s = u.pathname.replace(/^\//,''); }catch{ /* not URL */ }
+      const [owner, repo] = s.split('/');
+      if(!owner || !repo) throw new Error('リポジトリのパスが見つかりません (例: username/repo)');
+      return `${owner}/${repo}`;
+    }
+
+    async function generateCard(){
+      const raw = repoInput.value;
+      preview.textContent = '読み込み中...';
+      codeOutput.value = '';
+
+      if(!isLikelyRepo(raw)){
+        preview.innerHTML = '<span class="err">有効なGitHubのURL/パスを入力してください。</span>';
+        return;
+      }
+
+      const repoPath = toRepoPath(raw);
+      const apiUrl = `https://api.github.com/repos/${repoPath}`;
+      const token = tokenEl.value.trim() || localStorage.getItem('gh_token') || '';
+
+      try{
+        const res = await fetch(apiUrl, { headers: token ? { 'Authorization': `Bearer ${token}` } : {} });
+        if(!res.ok) throw new Error(`GitHub APIエラー: ${res.status}`);
+        const data = await res.json();
+
+        const cardHtml = buildCardHtml(data);
+        preview.innerHTML = cardHtml;
+        codeOutput.value = cardHtml.trim();
+
+        // UX: 生成直後に自動コピー（ユーザー操作中のため許可されやすい）
+        await tryCopy(codeOutput.value);
+      }catch(err){
+        preview.innerHTML = `<span class="err">エラー: ${err.message}</span>`;
+      }
+    }
+
+    function buildCardHtml(data){
+      const lang = data.language || '';
+      const langColor = getLanguageColor(lang);
+      return `\n<style>\n.gh-card-container{font-family:-apple-system,BlinkMacSystemFont,\"Segoe UI\",Roboto,Helvetica,Arial,sans-serif;border:1px solid #e1e4e8;border-radius:6px;padding:16px;margin:1.5em 0;line-height:1.4;background:#fff;max-width:600px}\n.gh-card-container a{text-decoration:none;color:inherit}\n.gh-card-header{display:flex;align-items:center;gap:8px;margin-bottom:8px}\n.gh-card-repo-name{font-weight:600;font-size:1.1em;color:#0366d6}\n.gh-card-repo-name:hover{text-decoration:underline}\n.gh-card-description{color:#586069;font-size:.9em;margin-bottom:16px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.5em}\n.gh-card-footer{display:flex;align-items:center;gap:16px;font-size:.8em;color:#586069}\n.gh-card-language-color{width:12px;height:12px;border-radius:50%;border:1px solid #d1d5da;margin-right:4px;display:inline-block;vertical-align:middle}\n.gh-card-owner{margin-left:auto;display:flex;align-items:center;gap:6px}\n.gh-card-owner img{width:24px;height:24px;border-radius:50%}\n</style>\n<div class=\"gh-card-container\">\n  <a href=\"${data.html_url}\" target=\"_blank\" rel=\"noopener noreferrer\">\n    <div class=\"gh-card-header\">\n      <svg aria-hidden=\"true\" height=\"16\" viewBox=\"0 0 16 16\" width=\"16\"><path d=\"M2 2.5A2.5 2.5 0 0 1 4.5 0h8.75a.75.75 0 0 1 .75.75v12.5a.75.75 0 0 1-.75.75h-2.5a.75.75 0 0 1 0-1.5h1.75v-2h-8a1 1 0 0 0-.714 1.7.75.75 0 0 1-1.072 1.05A2.495 2.495 0 0 1 2 11.5Z M4.5 1h8V.75H4.5a1.75 1.75 0 0 0 0 3.5h8V3h-8a1.75 1.75 0 0 0 0-3.5Zm-2.25 8a.75.75 0 0 0 .75.75h4.5a.75.75 0 0 0 0-1.5h-4.5a.75.75 0 0 0-.75.75Z\"></path></svg>\n      <span class=\"gh-card-repo-name\">${escapeHtml(data.full_name)}</span>\n    </div>\n    <div class=\"gh-card-description\">${escapeHtml(data.description || 'No description provided.')}</div>\n    <div class=\"gh-card-footer\">\n      ${lang ? `<span><span class=\"gh-card-language-color\" style=\"background:${langColor}\"></span>${escapeHtml(lang)}</span>` : ''}\n      <span title=\"Stars\">⭐ ${data.stargazers_count}</span>\n      <span title=\"Forks\">⑂ ${data.forks_count}</span>\n      <span class=\"gh-card-owner\"><img src=\"${data.owner.avatar_url}\" alt=\"${escapeHtml(data.owner.login)}\">${escapeHtml(data.owner.login)}</span>\n    </div>\n  </a>\n</div>`;
+    }
+
+    function getLanguageColor(language){
+      const colors={
+        "JavaScript":"#f1e05a","TypeScript":"#3178c6","Python":"#3572A5","HTML":"#e34c26","CSS":"#563d7c","Java":"#b07219","Ruby":"#701516","PHP":"#4F5D95","C++":"#f34b7d","C#":"#178600","Go":"#00ADD8","Swift":"#ffac45","Kotlin":"#F18E33","Rust":"#dea584","Shell":"#89e051"
+      }; return colors[language] || '#ededed';
+    }
+
+    function escapeHtml(s){
+      return String(s).replace(/[&<>\"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    }
+
+    async function tryCopy(text){
+      if(!text) return false;
+      try{ await navigator.clipboard.writeText(text); toastMsg('HTMLをコピーしました'); return true; }
+      catch{ toastMsg('コピーに失敗。手動でコピーしてください'); return false; }
+    }
+
+    function toastMsg(msg){ toast.textContent = msg; toast.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(()=> toast.classList.remove('show'), 1600); }
+  </script>
 </body>
 </html>
