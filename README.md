@@ -1,1 +1,1 @@
-# [ https://mr-superinsane.github.io/GitHub-Card-Generator/](https://mr-superinsane.github.io/GitHub-Card-Generator/)
+# [GitHub Card Generator](https://mr-superinsane.github.io/GitHub-Card-Generator/)
